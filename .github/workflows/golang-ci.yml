@@ -12,6 +12,7 @@ on:
 
 permissions:
   pull-requests: write
+  issues: write
   contents: read
 
 jobs:
@@ -32,8 +33,21 @@ jobs:
       - name: Get dependencies
         run: go mod download
 
-      - name: Run Test
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+      - name: Run tests
+        run: |
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./... > test_output.txt
+          echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
+
+      - name: Parse test results
+        run: |
+          TOTAL=$(grep -c "^===" test_output.txt || true)
+          PASSED=$(grep -c "^--- PASS:" test_output.txt || true)
+          FAILED=$(grep -c "^--- FAIL:" test_output.txt || true)
+          SKIPPED=$(grep -c "^--- SKIP:" test_output.txt || true)
+          echo "TOTAL_TESTS=$TOTAL" >> $GITHUB_ENV
+          echo "PASSED_TESTS=$PASSED" >> $GITHUB_ENV
+          echo "FAILED_TESTS=$FAILED" >> $GITHUB_ENV
+          echo "SKIPPED_TESTS=$SKIPPED" >> $GITHUB_ENV
 
       - name: Generate coverage report
         run: |
@@ -54,11 +68,44 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          COMMENT_BODY=":線グラフ: Test Coverage: ${{ env.COVERAGE }}%
-          [Full coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          "
-          if [ -n "${{ steps.fc.outputs.comment-id }}" ]; then
-            gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY" --edit-last ${{ steps.fc.outputs.comment-id }}
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          COMMENT_MARKER="Test Results and Coverage Report"
+
+          if [ "${{ env.TEST_EXIT_CODE }}" == "0" ]; then
+            TEST_STATUS=":white_check_mark: Tests Passed"
           else
-            gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY"
+            TEST_STATUS=":x: Tests Failed"
           fi
+
+          COMMENT_BODY="## $TEST_STATUS
+          ### Test Results
+          - Total Tests: ${{ env.TOTAL_TESTS }}
+          - Passed: ${{ env.PASSED_TESTS }}
+          - Failed: ${{ env.FAILED_TESTS }}
+          - Skipped: ${{ env.SKIPPED_TESTS }}
+          ### Coverage Report
+          :bar_chart: Test Coverage: ${{ env.COVERAGE }}%
+          [Full test and coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          <!-- $COMMENT_MARKER -->"
+
+          # Find existing comment
+          COMMENT_IDS=$(gh pr view $PR_NUMBER --json comments --jq '.comments[] | select(.body | contains("'"$COMMENT_MARKER"'")) | .id')
+
+          echo "Existing comment ID: $COMMENT_IDS"
+
+          # Delete existing comments
+          # https://docs.github.com/ja/rest/pulls/comments#delete-a-review-comment-for-a-pull-request
+          if [ -n "$COMMENT_IDS" ]; then
+            echo "$COMMENT_IDS" | while read -r comment_id; do
+              if [ -n "$comment_id" ]; then
+                gh api --method DELETE -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/${{ github.repository }}/issues/comments/$comment_id
+                echo "Deleted comment $comment_id"
+              fi
+            done
+          else
+            echo "No existing comments found with the marker"
+          fi
+
+
+          # Create new comment
+          gh pr comment $PR_NUMBER --body "$COMMENT_BODY"

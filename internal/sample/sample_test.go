@@ -15,3 +15,10 @@ func TestAdd(t *testing.T) {
 		t.Errorf("Expected %d, got %d", expected, Add(1, 2))
 	}
 }
+
+func TestSubtrac(t *testing.T) {
+	expected := -1
+	if Subtract(1, 2) != expected {
+		t.Errorf("Expected %d, got %d", expected, Subtract(1, 2))
+	}
+}

@@ -9,3 +9,9 @@ rm -rf go_sample/go.mod
 # プロジェクトを作成
 go mod init <プロジェクト名>
 ```
+
+# テスト方法
+
+```
+go test ./...
+```
