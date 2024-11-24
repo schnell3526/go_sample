@@ -58,7 +58,7 @@ jobs:
           [Full coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           "
           if [ -n "${{ steps.fc.outputs.comment-id }}" ]; then
-            gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY" --edit ${{ steps.fc.outputs.comment-id }}
+            gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY" --edit-last ${{ steps.fc.outputs.comment-id }}
           else
             gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY"
           fi
