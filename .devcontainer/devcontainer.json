@@ -71,6 +71,7 @@
                 "tamasfe.even-better-toml",
                 "shd101wyy.markdown-preview-enhanced",
                 "ms-azuretools.vscode-docker",
+                "redhat.vscode-yaml",
                 "golang.go"
             ]
         }
