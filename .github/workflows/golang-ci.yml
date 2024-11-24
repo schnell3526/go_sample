@@ -22,10 +22,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: reviewdog/action-setup@v1
-        with:
-          reviewdog_version: latest
-
       - uses: actions/setup-go@v5
         with:
           go-version: ^1.23
@@ -38,6 +34,7 @@ jobs:
           go test -v -race -coverprofile=coverage.txt -covermode=atomic ./... > test_output.txt
           echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
 
+      # テスト結果からテストの実行数、成功数、失敗数、スキップ数を取得。(カウントが0の場合は grep が異常終了するので || true を追加)
       - name: Parse test results
         run: |
           TOTAL=$(grep -c "^===" test_output.txt || true)
@@ -54,15 +51,7 @@ jobs:
           go tool cover -func=coverage.txt > coverage.out
           echo "COVERAGE=$(grep total: coverage.out | grep -o '[0-9]\+\.[0-9]\+')" >> $GITHUB_ENV
 
-      - name: Find Comment
-        if: github.event_name == 'pull_request'
-        uses: peter-evans/find-comment@v3
-        id: fc
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
-          body-includes: Test Coverage
-
+      # 結果コメントを Create する (すでに存在していれば削除)
       - name: Update or Create Comment
         if: github.event_name == 'pull_request'
         env:
@@ -84,32 +73,18 @@ jobs:
           - Failed: ${{ env.FAILED_TESTS }}
           - Skipped: ${{ env.SKIPPED_TESTS }}
           ### Coverage Report
-          :bar_chart: Test Coverage: ${{ env.COVERAGE }}%
           [Full test and coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
           <!-- $COMMENT_MARKER -->"
+          echo "::debug::Comment Body: $COMMENT_BODY"
 
-          # Find existing comment
-          COMMENT_IDS=$(gh pr view $PR_NUMBER --json comments --jq '.comments[] | select(.body | contains("'"$COMMENT_MARKER"'")) | .id')
+          # この WF が作成したコメントを検索する
+          COMMENT_IDS=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments | jq '.[] | select(.body | contains("Test Results and Coverage Report")) | .id')
+          echo "::debug::Comment IDs: $COMMENT_IDS"
 
-          echo "Existing comment ID: $COMMENT_IDS"
-
-          # Delete existing comments
-          # https://docs.github.com/ja/rest/pulls/comments#delete-a-review-comment-for-a-pull-request
+          # 既存のコメントを削除する
+           # https://docs.github.com/ja/rest/pulls/comments#delete-a-review-comment-for-a-pull-request
           if [ -n "$COMMENT_IDS" ]; then
-            echo "$COMMENT_IDS" | while read -r comment_id; do
-              if [ -n "$comment_id" ]; then
-                gh api \
-                  --method DELETE \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
-                  /repos/${{ github.repository }}/pulls/comments/$comment_id
-                echo "Hidden comment $comment_id"
-              fi
-            done
+            echo ${COMMENT_IDS} | xargs -I {} gh api -X DELETE repos/${{ github.repository }}/issues/comments/{}
           else
             echo "No existing comments found with the marker"
           fi
-
-
-          # Create new comment
-          gh pr comment $PR_NUMBER --body "$COMMENT_BODY"
