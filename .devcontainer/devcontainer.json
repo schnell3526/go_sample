@@ -1,0 +1,78 @@
+{
+    "name": "Go",
+    "remoteUser": "${localEnv:USER}",
+    "dockerComposeFile": "../docker/compose.yaml",
+    "service": "devcontainer",
+    "runServices": [
+        "devcontainer"
+    ],
+    "workspaceFolder": "/go_sample",
+    "mounts": [
+        "source=${localEnv:HOME}/.gitconfig,target=/home/${localEnv:USER}/.gitconfig,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.vimrc,target=/home/${localEnv:USER}/.vimrc,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.ssh/,target=/home/${localEnv:USER}/.ssh/,type=bind,consistency=cached"
+    ],
+    "initializeCommand": "/bin/bash .devcontainer/lifecycle-scripts/initializeCommand.sh",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+        "ghcr.io/dhoeric/features/hadolint:1": {},
+        "ghcr.io/devcontainers/features/aws-cli:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                // ファイル保存時に自動でフォーマット(末に空行挿入、末の空白削除)をかける
+                "files.trimTrailingWhitespace": true,
+                "files.insertFinalNewline": true,
+                // json ファイルを編集する際のフォーマッター設定
+                "[json][jsonc]": {
+                    "editor.defaultFormatter": "vscode.json-language-features",
+                    "editor.formatOnSave": true,
+                    "editor.codeActionsOnSave": {
+                        "source.organizeImports": "explicit",
+                        "source.fixAll": "explicit"
+                    }
+                },
+                "hadolint.cliOptions": [
+                    "--ignore",
+                    "DL3008" // apt-get 時にバージョン指定を求めるルール
+                ],
+                // git のリポジトリを開く際に親フォルダも探索する
+                "git.openRepositoryInParentFolders": "always",
+                "workbench.colorCustomizations": {
+                    // サイドバーの設定
+                    "activityBar.activeBackground": "#93e6fc",
+                    "activityBar.background": "#93e6fc",
+                    "activityBar.foreground": "#15202b",
+                    "activityBar.inactiveForeground": "#15202b99",
+                    "activityBarBadge.background": "#fa45d4",
+                    "activityBarBadge.foreground": "#15202b",
+                    // 上下のバーの設定
+                    "commandCenter.border": "#e7e7e799",
+                    "sash.hoverBorder": "#ab307e",
+                    "statusBar.background": "#832561",
+                    "statusBar.foreground": "#e7e7e7",
+                    "statusBarItem.hoverBackground": "#ab307e",
+                    "statusBarItem.remoteBackground": "#832561",
+                    "statusBarItem.remoteForeground": "#e7e7e7",
+                    "titleBar.activeBackground": "#832561",
+                    "titleBar.activeForeground": "#e7e7e7",
+                    "titleBar.inactiveBackground": "#83256199",
+                    "titleBar.inactiveForeground": "#e7e7e799"
+                }
+            },
+            "extensions": [
+                "mhutchie.git-graph",
+                "vscode-icons-team.vscode-icons",
+                "yzhang.markdown-all-in-one",
+                "github.copilot",
+                "exiasr.hadolint",
+                "GitHub.vscode-github-actions",
+                "tamasfe.even-better-toml",
+                "shd101wyy.markdown-preview-enhanced",
+                "ms-azuretools.vscode-docker",
+                "golang.go"
+            ]
+        }
+    }
+}

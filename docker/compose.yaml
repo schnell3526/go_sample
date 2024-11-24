@@ -1,0 +1,26 @@
+services:
+  devcontainer:
+    build:
+      context:  ../
+      dockerfile: ./docker/Dockerfile
+      target: devcontainer
+      args:
+        USER_NAME: ${USER}
+        USER_UID: ${USER_UID}
+        USER_GID: ${USER_GID}
+    env_file:
+      - path: ../.env
+        required: true
+    tty: true
+    container_name: app-devcontainer
+    volumes:
+      - ../:/go_sample/
+  prod:
+    build:
+      context:  ../
+      dockerfile: ./docker/Dockerfile
+      target: prod
+      args:
+        APP_NAME: main
+    tty: true
+    container_name: app-prod
