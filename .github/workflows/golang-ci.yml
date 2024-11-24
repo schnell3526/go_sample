@@ -89,7 +89,10 @@ jobs:
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 /repos/${{ github.repository }}/issues/comments/{} \
-                -f hidden=true
+                -f hidden=true \
+                -f body="@-" <<EOF
+                  $(gh api repos/${{ github.repository }}/issues/comments/{} | jq -r .body)
+                EOF
           else
             echo "No existing comments found with the marker"
           fi
