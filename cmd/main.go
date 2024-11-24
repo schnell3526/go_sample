@@ -1,8 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"go_sample/internal/sample"
+)
 
 func main() {
 	// Run the main function of the app
-	fmt.Println("Hello, World!")
+	sample.HelloWorld()
 }
