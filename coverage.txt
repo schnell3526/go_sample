@@ -1,0 +1,3 @@
+mode: atomic
+go_sample/cmd/main.go:5.13,8.2 1 0
+go_sample/internal/sample/sample.go:3.26,5.2 1 1
