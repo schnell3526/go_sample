@@ -88,3 +88,6 @@ jobs:
           else
             echo "No existing comments found with the marker"
           fi
+
+          # 新しいコメントを作成する
+          gh pr comment ${PR_NUMBER} --body "${COMMENT_BODY}"
