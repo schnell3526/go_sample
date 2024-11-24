@@ -40,12 +40,25 @@ jobs:
           go tool cover -func=coverage.txt > coverage.out
           echo "COVERAGE=$(grep total: coverage.out | grep -o '[0-9]\+\.[0-9]\+')" >> $GITHUB_ENV
 
-      - name: Comment PR
+      - name: Find Comment
         if: github.event_name == 'pull_request'
-        run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "📊 Test Coverage: ${{ env.COVERAGE }}%
+        uses: peter-evans/find-comment@v3
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: Test Coverage
 
-          [Full coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          "
+      - name: Update or Create Comment
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMENT_BODY=":線グラフ: Test Coverage: ${{ env.COVERAGE }}%
+          [Full coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          "
+          if [ -n "${{ steps.fc.outputs.comment-id }}" ]; then
+            gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY" --edit ${{ steps.fc.outputs.comment-id }}
+          else
+            gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY"
+          fi
