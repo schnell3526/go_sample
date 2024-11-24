@@ -49,15 +49,15 @@
                     "activityBarBadge.foreground": "#15202b",
                     // 上下のバーの設定
                     "commandCenter.border": "#e7e7e799",
-                    "sash.hoverBorder": "#ab307e",
-                    "statusBar.background": "#832561",
+                    "sash.hoverBorder": "#4838bc",
+                    "statusBar.background": "#392c95",
                     "statusBar.foreground": "#e7e7e7",
-                    "statusBarItem.hoverBackground": "#ab307e",
-                    "statusBarItem.remoteBackground": "#832561",
+                    "statusBarItem.hoverBackground": "#4838bc",
+                    "statusBarItem.remoteBackground": "#392c95",
                     "statusBarItem.remoteForeground": "#e7e7e7",
-                    "titleBar.activeBackground": "#832561",
+                    "titleBar.activeBackground": "#392c95",
                     "titleBar.activeForeground": "#e7e7e7",
-                    "titleBar.inactiveBackground": "#83256199",
+                    "titleBar.inactiveBackground": "#392c9599",
                     "titleBar.inactiveForeground": "#e7e7e799"
                 }
             },
