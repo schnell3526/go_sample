@@ -1,0 +1,106 @@
+name: Go CI
+
+run-name: Go CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ^1.23
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: |
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic ./... > test_output.txt
+          echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
+
+      # テスト結果からテストの実行数、成功数、失敗数、スキップ数を取得。(カウントが0の場合は grep が異常終了するので || true を追加)
+      - name: Parse test results
+        run: |
+          TOTAL=$(grep -c "^===" test_output.txt || true)
+          PASSED=$(grep -c "^--- PASS:" test_output.txt || true)
+          FAILED=$(grep -c "^--- FAIL:" test_output.txt || true)
+          SKIPPED=$(grep -c "^--- SKIP:" test_output.txt || true)
+          echo "TOTAL_TESTS=$TOTAL" >> $GITHUB_ENV
+          echo "PASSED_TESTS=$PASSED" >> $GITHUB_ENV
+          echo "FAILED_TESTS=$FAILED" >> $GITHUB_ENV
+          echo "SKIPPED_TESTS=$SKIPPED" >> $GITHUB_ENV
+
+      - name: Generate coverage report
+        run: |
+          go tool cover -func=coverage.txt > coverage.out
+          echo "COVERAGE=$(grep total: coverage.out | grep -o '[0-9]\+\.[0-9]\+')" >> $GITHUB_ENV
+
+      # 結果コメントを Create する (すでに存在していれば削除)
+      - name: Update or Create Comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          COMMENT_MARKER="Test Results and Coverage Report"
+
+          if [ "${{ env.TEST_EXIT_CODE }}" == "0" ]; then
+            TEST_STATUS=":white_check_mark: Tests Passed"
+          else
+            TEST_STATUS=":x: Tests Failed"
+          fi
+
+          COMMENT_BODY="## $TEST_STATUS
+          ### Test Results
+          - Total Tests: ${{ env.TOTAL_TESTS }}
+          - Passed: ${{ env.PASSED_TESTS }}
+          - Failed: ${{ env.FAILED_TESTS }}
+          - Skipped: ${{ env.SKIPPED_TESTS }}
+          ### Coverage Report
+          [Full test and coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          <!-- $COMMENT_MARKER -->"
+          echo "::debug::Comment Body: $COMMENT_BODY"
+
+          # この WF が作成したコメントを検索する (https://docs.github.com/ja/rest/issues/comments?apiVersion=2022-11-28#list-issue-comments)
+          # COMMENT_MARKER を含むコメントの node_id を取得する
+          COMMENT_IDS=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments | jq '.[] | select(.body | contains("Test Results and Coverage Report")) | .node_id')
+          echo "::debug::Comment IDs: $COMMENT_IDS"
+
+          # 既存のコメントを非表示にする (https://docs.github.com/ja/graphql/reference/mutations#minimizecomment)
+          if [ -n "$COMMENT_IDS" ]; then
+            for COMMENT_ID in $COMMENT_IDS; do
+              echo "::debug::Minimizing comment with ID: $COMMENT_ID"
+              QUERY="
+              mutation {
+                minimizeComment(input: { subjectId: ${COMMENT_ID}, classifier: "OUTDATED"}) {
+                  minimizedComment {
+                    isMinimized
+                  }
+                }
+              }
+              "
+              echo "::debug::Query: $QUERY"
+              gh api graphql -f query="$QUERY"
+            done
+          else
+            echo "No existing comments found with the marker"
+          fi
+
+          # 新しいコメントを作成する
+          gh pr comment ${PR_NUMBER} --body "${COMMENT_BODY}"
