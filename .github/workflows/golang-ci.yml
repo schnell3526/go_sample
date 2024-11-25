@@ -78,23 +78,26 @@ jobs:
           echo "::debug::Comment Body: $COMMENT_BODY"
 
           # この WF が作成したコメントを検索する (https://docs.github.com/ja/rest/issues/comments?apiVersion=2022-11-28#list-issue-comments)
-          COMMENT_IDS=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments | jq '.[] | select(.body | contains("Test Results and Coverage Report")) | .id')
+          # COMMENT_MARKER を含むコメントの node_id を取得する
+          COMMENT_IDS=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments | jq '.[] | select(.body | contains("Test Results and Coverage Report")) | .node_id')
           echo "::debug::Comment IDs: $COMMENT_IDS"
 
-          # 既存のコメントを非表示にする (https://docs.github.com/ja/rest/issues/comments?apiVersion=2022-11-28#update-an-issue-comment)
+          # 既存のコメントを非表示にする (https://docs.github.com/ja/graphql/reference/mutations#minimizecomment)
           if [ -n "$COMMENT_IDS" ]; then
-            SUBJECT_ID=$(echo -n "MDEyOklzc3VlQ29tbWVudCR${COMMENT_ID}" | base64)
-            # GraphQL APIを使用してコメントを非表示にする
-            gh api graphql -f query='
-              mutation($input: MinimizeCommentInput!) {
-                minimizeComment(input: $input) {
+            for COMMENT_ID in $COMMENT_IDS; do
+              echo "::debug::Minimizing comment with ID: $COMMENT_ID"
+              QUERY="
+              mutation {
+                minimizeComment(input: { subjectId: \"${COMMENT_ID}\", classifier: "OUTDATED"}) {
                   minimizedComment {
                     isMinimized
-                    minimizedReason
                   }
                 }
               }
-            ' -f input="{\"subjectId\":\"$SUBJECT_ID\",\"classifier\":\"OUTDATED\"}" --jq '.data.minimizeComment.minimizedComment'
+              "
+              echo "::debug::Query: $QUERY"
+              gh api graphql -f query="$QUERY"
+            done
           else
             echo "No existing comments found with the marker"
           fi
